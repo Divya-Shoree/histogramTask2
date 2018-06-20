@@ -1,11 +1,12 @@
 CC=musl-gcc
 
-FLAGS=-O3 -lm
+FLAGS=-g -O3 -lm
 
-all: histogram
+all: histogram child
 
-histogram: histogram.c
+histogram: histogram.c struct.h
 	$(CC) $(FLAGS) histogram.c -o histogram
-
+child: child.c struct.h
+	$(CC) $(FLAGS) child.c -o child
 clean:
 	rm histogram

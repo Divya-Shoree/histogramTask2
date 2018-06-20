@@ -79,6 +79,9 @@ void Histogram(PPMImage *image, float *h) {
 	int i, j,  k, l, x, count;
 	int rows, cols;
 
+	int arrayLoopVar[5];
+	int numOfIterations, halfIterations;
+	
 	int fd[2];
 	char fdChar[12];
 	char* args[3];
@@ -107,68 +110,63 @@ void Histogram(PPMImage *image, float *h) {
 
 	count = 0;
 	x = 0;
-	
-	if((pid=fork())<0)
-	{
-		perror("error forking child.\n");
-		exit(1);
-	}
+	halfIterations = (4*4*4*n)/2; //divide a nested loop into half
+	for(j = 0; j <=3; j++){
+		for(k = 0; k <= 3; k++){
+			for(l = 0; l <= 3; l++){
+				for(i = 0; i < n; i++){
 
-	if(pid > 0)
-	{
-		printf("Parent begins\n");
-		printf("n = %f\n",n);
-		close(fd[0]);
-		write(fd[1],&n,sizeof(float));
-		write(fd[1],image,sizeof(PPMImage));
-		write(fd[1],image->data,(sizeof(PPMPixel)*n));
-		close(fd[1]);
-		wait(&pid);
-		printf("Parent ends\n");
-	}
+					arrayLoopVar[0] = x;
+					arrayLoopVar[1] = j;
+					arrayLoopVar[2] = k;
+					arrayLoopVar[3] = l;
+					arrayLoopVar[4] = i;
+					
+					if( numOfIterations++ == halfIterations){
+						if((pid=fork())<0){
+							perror("error forking child.\n");
+							exit(1);
+						}
 
-	else
-	{
-		close(fd[1]);
-		/**/
-		snprintf(fdChar,12,"%i",fd[0]); // A 32 bit number can't take more than 11 characters, + a terminating 0
+						if(pid > 0){
+							printf("Parent begins\n");
+							printf("n = %f\n",n);
+							close(fd[0]);
+							write(fd[1],&n,sizeof(float));
+							write(fd[1],arrayLoopVar,sizeof(arrayLoopVar));
+							write(fd[1],h,sizeof(float)*64);
+							write(fd[1],image,sizeof(PPMImage));
+							write(fd[1],image->data,(sizeof(PPMPixel)*n));
+							close(fd[1]);
+							wait(&pid);
+							printf("Parent ends\n");
+							exit(0);
+						}
 
-		args[0] = "child";
-		args[1] = fdChar;
-		args[2] = (char*)0;
+						else{
+							close(fd[1]);
+							/**/
+							snprintf(fdChar,12,"%i",fd[0]); // A 32 bit number can't take more than 11 characters, + a terminating 0
 
-		execve("child",args,envp);
+							args[0] = "child";
+							args[1] = fdChar;
+							args[2] = (char*)0;
 
-		perror("error execve\n");
-		exit(1);
+							execve("child",args,envp);
 
-		
-		/**/
-		/*
-		read(fd[0],&childN,sizeof(float));
-		read(fd[0],buf,sizeof(PPMImage));
-		read(fd[0],buf->data,sizeof(PPMPixel)*n);
-		
-		for(j = 0; j <= 3; j++){
-			for(k = 0; k <= 3; k++){
-				for(l = 0; l <= 3; l++){
-					for(i = 0; i < childN; i++){
-						if(buf->data[i].red == j && buf->data[i].green == k && buf->data[i].blue == l){
-							count++;
+							perror("error execve\n");
+							exit(1);
 						}
 					}
-					h[x] = count / n;
-					count = 0;
-					x++;
+					if(image->data[i].red == j && image->data[i].green == k && image->data[i].blue == l){
+						count++;
+					}
 				}
+				h[x] = count / n;
+				count = 0;
+				x++;
 			}
 		}
-
-		for(i = 0; i < 64; i++){
-			printf("%d = %0.3f ",i,h[i]);
-		}
-		printf("\n");
-		*/
 	}
 }
 
